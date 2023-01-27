@@ -8,99 +8,105 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using Renci.SshNet.Security;
 
 namespace WindowsFormsApp_Lakopark
 {
     public partial class Form1 : Form
     {
-        HappyLiving happyLiving = new HappyLiving(@"..\..\lakoparkok.txt");
-        readonly int buttonSize = 40;
-        int CurrentPark = 0;
-        List<Image> szintek = new List<Image>();
+        HappyLiving happyLiving = new Database().AllLakopark();
+        string imagePath = @"..//../Kepek/";
+        int pageNumber = 0;
+        int pictureSize = 40;
 
         public Form1()
         {
             InitializeComponent();
         }
-        void PanelUpdate()
+        private void ImageLoad(PictureBox pictureBox, int i, int j)
         {
-            this.Text = happyLiving.Lakoparkok[CurrentPark].Nev + " lakópark";
-            if (CurrentPark == 0)
+            string House = imagePath + @"hazak" + happyLiving.Lakoparkok[pageNumber].Hazak[i, j] + ".jpg";
+            if (File.Exists(House))
             {
-                button_Left.Enabled = false;
-                button_Left.Hide();
-            }
-            else if (CurrentPark == happyLiving.Lakoparkok.Count - 1)
-            {
-                button_Right.Enabled = false;
-                button_Right.Hide();
+                pictureBox.ImageLocation = House;
             }
             else
             {
-                button_Left.Enabled = true;
-                button_Left.Show();
-                button_Right.Enabled = true;
-                button_Right.Show();
-
+                pictureBox.ImageLocation = "..//../Kepek/kereszt.jpg";
             }
-            pictureBox_StreetName.BackgroundImage = happyLiving.Lakoparkok[CurrentPark].ImageName;
-            pictureBox_StreetName.BackgroundImageLayout = ImageLayout.Stretch;
+        }
+        void PanelUpdate(Lakopark lakopark)
+        {
             panel_Street.Controls.Clear();
-            for (int i = 0; i < happyLiving.Lakoparkok[CurrentPark].Hazak.GetLength(1); i++)
+            pictureBox_StreetName.ImageLocation = imagePath + happyLiving.Lakoparkok[pageNumber].Nev + ".jpg";
+
+            for (int i = 0; i < happyLiving.Lakoparkok[pageNumber].MaxhazSzam; i++)
             {
-                for (int j = 0; j < happyLiving.Lakoparkok[CurrentPark].Hazak.GetLength(0); j++)
+                for (int j = 0; j < happyLiving.Lakoparkok[pageNumber].UtcakSzama; j++)
                 {
-                    //-- Létrehozás ----------------------------------
-                    Button g = new Button();
-                    g.BackgroundImage = szintek[happyLiving.Lakoparkok[CurrentPark].Hazak[j, i]];
-                    g.BackgroundImageLayout = ImageLayout.Stretch;
-                    g.SetBounds(i * buttonSize, j * buttonSize, buttonSize, buttonSize);
-                    //-- eseménykezelés ------------------------------
-                    int utca = j;
-                    int haz = i;
-                    g.Click += (o, e) =>
-                    {
-                        happyLiving.Lakoparkok[CurrentPark].HouseLevel(utca, haz);
-                        PanelUpdate();
+                    PictureBox picturebox = new PictureBox();
+                    picturebox.ImageLocation = "..//../Kepek/kereszt.jpg";
+                    picturebox.SizeMode = PictureBoxSizeMode.StretchImage;
+                    picturebox.SetBounds(j * pictureSize, i * pictureSize, pictureSize, pictureSize);
+                    picturebox.Name = $"{i};{j}";
+
+                    ImageLoad(picturebox, i, j);
+                    picturebox.Click += (o, ev) => {
+                        PictureBox picture = (PictureBox)o;
+
+                        int[] hazak = Array.ConvertAll(picture.Name.Split(';'), int.Parse);
+                        int path_i = hazak[0];
+                        int path_j = hazak[1];
+
+                        if (happyLiving.Lakoparkok[pageNumber].Hazak[path_i, path_j] + 1 > 3)
+                        {
+                            happyLiving.Lakoparkok[pageNumber].Hazak[path_i, path_j] = 0;
+                        }
+                        else
+                        {
+                            happyLiving.Lakoparkok[pageNumber].Hazak[path_i, path_j] += 1;
+                        }
+                        ImageLoad(picturebox, path_i, path_j);
+
                     };
-                    panel_Street.Controls.Add(g);
+                    panel_Street.Controls.Add(picturebox);
                 }
             }
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-            szintek.Add(Image.FromFile(@"..\..\Kepek\kereszt.jpg"));  
-            szintek.Add(Image.FromFile(@"..\..\Kepek\Haz1.jpg"));     
-            szintek.Add(Image.FromFile(@"..\..\Kepek\Haz2.jpg"));    
-            szintek.Add(Image.FromFile(@"..\..\Kepek\Haz3.jpg"));   
-            PanelUpdate();
+            PanelUpdate(happyLiving.Lakoparkok[pageNumber]);
+            nyilak();
         }
-
-
-
 
         private void button_Mentes_Click(object sender, EventArgs e)
         {
-            if (happyLiving.Mentes())
-            {
-                MessageBox.Show("Sikeres Mentés");
-            }
-            else
-            {
-                MessageBox.Show("Adatok mentése nem sikerült!");
-            }
+            bool siker = new Database().Save(happyLiving);
         }
 
+        private void nyilak()
+        {
+
+            
+        }
         private void button_Balra_Click_1(object sender, EventArgs e)
         {
-            CurrentPark--;
-            PanelUpdate();
+            if (pageNumber - 1 > -1)
+            {
+                pageNumber--;
+            }
+            PanelUpdate(happyLiving.Lakoparkok[pageNumber]);
+            nyilak();
         }
 
         private void button_Jobbra_Click_1(object sender, EventArgs e)
         {
-            CurrentPark++;
-            PanelUpdate();
+            if (pageNumber + 1 < 3)
+            {
+                pageNumber++;
+            }
+            PanelUpdate(happyLiving.Lakoparkok[pageNumber]);
+            nyilak();
         }
     }
 }
